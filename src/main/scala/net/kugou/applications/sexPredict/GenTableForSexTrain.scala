@@ -28,10 +28,12 @@ object GenTableForSexTrain extends Serializable {
     if (dm.isEmpty) {if(date.length > 7) dm = date.substring(0, 7) else dm = date}
 
     //加载用户行为数据
-    val userInfoSQL: String = "select a.userid, cast(a.sex as int) as sex, a.nickname, a.app_list, a.play_songid_list, b.top_singer, b.dm, a.pt " +
-      s"from $diggingTable a, $personasTable b " +
-      s"where a.dt='$date' and b.dm='$dm' and a.userid is not null and b.userid is not null and a.sex in ('0', '1') and a.userid=b.userid"
-    val userInfoData: DataFrame = spark.sql(userInfoSQL)
+    val diggingSQL: String = s"select userid, cast(sex as int) as sex, nickname, app_list, play_songid_list, '$dm' as dm, pt from $diggingTable " +
+      s"where dt='$date' and sex in ('0', '1')"
+    val personasSQL: String = s"select userid, top_singer from $personasTable where dm='$dm' and top_singer is not null"
+    val diggingData: DataFrame = spark.sql(diggingSQL)
+    val personasData: DataFrame = spark.sql(personasSQL)
+    val userInfoData: DataFrame = diggingData.join(personasData, Seq("userid"), "left_outer")
 
     //加载用户姓名数据
     val relationSQL: String = s"select detail from $relationTable where dt='2017-11-20' and detail is not null"
@@ -74,24 +76,24 @@ object GenTableForSexTrain extends Serializable {
     import spark.implicits._
     val nameData: DataFrame = data.rdd.flatMap{row =>
       val tokens: Array[String] = row.getString(0).split(";")
-      val pairs: Array[(String, String)] = tokens.flatMap{token =>
+      val pairs: Array[(String, List[String])] = tokens.flatMap{token =>
         val items: Array[String] = token.split(",")
         if (items.length > 1) {
           val userid: String = items(1)
           var tmpName: String = items(0).trim.replaceAll("\"", "")
           if (userid.length > 1 && tmpName.nonEmpty) {
             tmpName = if (tmpName.contains("u") && !tmpName.contains("\\")) tmpName.substring(tmpName.indexOf("u"), tmpName.length) else tmpName
-            val uName = if(tmpName.contains("\\") || tmpName.matches("\\d+")) tmpName
+            val uName: String = if(tmpName.contains("\\") || tmpName.matches("\\d+")) tmpName
             else addSplit(tmpName.trim, 5, "\\")
             val name: String = unicodeToString(uName)
-            Some((userid, name))
+            Some((userid, List(name)))
           } else None
         } else None
       }
       pairs
-    }.groupBy(_._1).flatMap{record =>
+    }.reduceByKey(_ ::: _).flatMap{record =>
       val userid: String = record._1
-      val nameList: List[String] = record._2.toList.map(_._2)
+      val nameList: List[String] = record._2
       val userAlias: String = nameList.distinct.mkString(";")
       val userName: String = nameList.map(word => (word, 1L)).groupBy(_._1).mapValues(list => list.map(_._2).sum).maxBy(_._2)._1
 
@@ -130,9 +132,9 @@ object GenTableForSexTrain extends Serializable {
     var ch: Char = 0
     var result: String = str
     while (matcher.find()) {
-      val group = matcher.group(2)
+      val group: String = matcher.group(2)
       ch = Integer.parseInt(group, 16).toChar
-      val group1 = matcher.group(1)
+      val group1: String = matcher.group(1)
       result = result.replace(group1, ch + "")
     }
 
