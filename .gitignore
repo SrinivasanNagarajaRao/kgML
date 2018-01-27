@@ -1,2 +1,6 @@
 .idea/
+metastore_db/
 *.iml
+*.log
+
+dependency-reduced-pom.xml
