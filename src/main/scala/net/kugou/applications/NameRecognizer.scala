@@ -1,5 +1,6 @@
 package net.kugou.applications
 
+import net.kugou.pipeline.Segmenter
 import net.kugou.utils.{DataTypeUtils, SparkUtils}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -19,11 +20,13 @@ object NameRecognizer extends Serializable {
 
     val relationTable: String = ""
     val relationDate: String = "2017-12-30"
+    val dicPath: String = "hdfs://kgdc/user/haoyan/conf/chinese_surname_top500.txt"
 
     val relationSQL: String = s"select detail from $relationTable where dt='$relationDate' and detail is not null"
     val relationData: DataFrame = spark.sql(relationSQL)
 
-    relationData.rdd.flatMap{row =>
+    import spark.implicits._
+    val nameData: DataFrame = relationData.rdd.flatMap{row =>
       val tokens: Array[String] = row.getString(0).split(";")
       val pairs: Array[(String, List[String])] = tokens.flatMap{token =>
         val items: Array[String] = token.split(",")
@@ -41,8 +44,24 @@ object NameRecognizer extends Serializable {
       }
       pairs
     }.reduceByKey(_ ::: _).map{record =>
-      record._1
+      val userid: String = record._1
+      val nameStr: String = record._2.mkString(" ")
+      (userid, nameStr)
+    }.toDF("userid", "nameStr")
 
+    val segmenter: Segmenter = new Segmenter()
+      .setInputCol("nameStr")
+      .setOutputCol("nameSeq")
+      .setSegType("StandardSegment")
+    val segedData: DataFrame = segmenter.transform(nameData)
+
+    val surnameSet: Set[String] = spark.sparkContext.textFile(dicPath).map(_.split(" ")(1)).collect().toSet
+    segedData.select("userid", "nameSeq").rdd.map{row =>
+      val userid: String = row.getString(0)
+      val nameSeq: List[String] = row.getAs[List[String]](1)
+
+
+      userid
     }
 
     spark.stop()
