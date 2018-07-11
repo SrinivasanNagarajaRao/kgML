@@ -10,6 +10,7 @@
 
     <properties>
         <junit.version>4.12</junit.version>
+        <xstream.version>1.4.10</xstream.version>
         <scala.version>2.11.8</scala.version>
         <scopt.version>3.6.0</scopt.version>
 
@@ -33,6 +34,14 @@
             <version>${junit.version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.thoughtworks.xstream/xstream -->
+        <dependency>
+            <groupId>com.thoughtworks.xstream</groupId>
+            <artifactId>xstream</artifactId>
+            <version>${xstream.version}</version>
+        </dependency>
+
 
         <dependency>
             <groupId>org.scala-lang</groupId>
@@ -104,6 +113,7 @@
             <version>${hanlp.version}</version>
         </dependency>
     </dependencies>
+
 
 
     <build>

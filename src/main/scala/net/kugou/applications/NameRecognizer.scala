@@ -60,7 +60,6 @@ object NameRecognizer extends Serializable {
       val userid: String = row.getString(0)
       val nameSeq: List[String] = row.getAs[List[String]](1)
 
-
       userid
     }
 

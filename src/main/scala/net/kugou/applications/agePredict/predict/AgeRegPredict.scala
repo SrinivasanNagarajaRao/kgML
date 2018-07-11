@@ -50,7 +50,8 @@ object AgeRegPredict extends Serializable {
     val nonZeroData: DataFrame = processor.filterEffectiveData(vecData, "features", 1)
 
     //预测
-    val predictions: DataFrame = predict(nonZeroData, modelPath)
+    var predictions: DataFrame = predict(nonZeroData, modelPath)
+    predictions = predictions.filter("predictions > 0 and predictions < 100")
 
     predictions.createOrReplaceTempView("tmpTable")
     spark.sql("set hive.exec.dynamic.partition.mode=nonstrict")

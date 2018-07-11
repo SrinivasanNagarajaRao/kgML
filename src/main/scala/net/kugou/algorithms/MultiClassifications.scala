@@ -305,15 +305,15 @@ class MultiClassifications(val spark: SparkSession) extends Serializable {
   /**
     * LR模型预测结果评估
     *
-    * @param predictionAndLabels    LR模型预测结果，包括: (预测结果、标签)
+    * @param LabelsAndprediction    LR模型预测结果，包括: (标签/预测结果)
     * @return   (准确率, (F1值, 精确率, 召回率))
     */
-  def evaluate(predictionAndLabels: RDD[(Double, Double)]): (Double, (Double, Double, Double)) = {
+  def evaluate(LabelsAndprediction: RDD[(Double, Double)]): (Double, (Double, Double, Double)) = {
     println("\n开始进行模型评估...")
 
     //打印每个类别下的查准率
     println("\n每个类别下的详细查准率：")
-    predictionAndLabels.map(_.swap).groupByKey().map { record =>
+    LabelsAndprediction.map(_.swap).groupByKey().map { record =>
       var tmpCount: Int = 0
       val count: Int = record._2.size
       record._2.foreach{pred => if(pred == record._1) tmpCount += 1}
@@ -324,7 +324,7 @@ class MultiClassifications(val spark: SparkSession) extends Serializable {
 
     //打印每个类别下的查全率
     println("\n每个类别下的详细查全率：")
-    predictionAndLabels.map(_.swap).groupByKey().map { record =>
+    LabelsAndprediction.groupByKey().map { record =>
       var tmpCount: Int = 0
       val count: Int = record._2.size
       record._2.foreach{pred => if(pred == record._1) tmpCount += 1}
@@ -333,7 +333,7 @@ class MultiClassifications(val spark: SparkSession) extends Serializable {
       println(s"类别：${record._1}, 查全率：${(1.0 * record._2 / record._3) * 100}%, 预测准确数：${record._2}, 真实总数：${record._3}")
     }
 
-    val metrics = new MulticlassMetrics(predictionAndLabels)
+    val metrics = new MulticlassMetrics(LabelsAndprediction)
 
     val f1: Double = metrics.weightedFMeasure
     val weightedPrecision: Double = metrics.weightedPrecision
