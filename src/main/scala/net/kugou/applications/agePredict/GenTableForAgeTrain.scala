@@ -87,11 +87,15 @@ object GenTableForAgeTrain extends Serializable {
         val items: Array[String] = token.split(",")
         if (items.length > 1) {
           val userid: String = items(1)
-          var tmpName: String = items(0).trim.replaceAll("\"", "")
+          var tmpName: String = items(0).trim.replaceAll("\"", "")  //去掉字符串中包含的双引号
           if (userid.length > 1 && tmpName.nonEmpty) {
+            // 如果字符串中包含“u”并且不包含反斜杠“\”，则从第一个“u”往后取子串
             tmpName = if (tmpName.contains("u") && !tmpName.contains("\\")) tmpName.substring(tmpName.indexOf("u"), tmpName.length) else tmpName
-            val uName = if(tmpName.contains("\\") || tmpName.matches("\\d+")) tmpName
-            else addSplit(tmpName.trim, 5, "\\")
+
+            // 如果字符串包含反斜杠“\”或者字符串为纯数字，则不作处理，否则按每5个字符间隔添加反斜杠“\”
+            val uName = if(tmpName.contains("\\") || tmpName.matches("\\d+")) tmpName else addSplit(tmpName.trim, 5, "\\")
+
+            // 将unicode转换为字符串
             val name: String = unicodeToString(uName)
             Some((userid, name))
           } else None

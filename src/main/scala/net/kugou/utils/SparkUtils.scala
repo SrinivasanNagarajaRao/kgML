@@ -1,5 +1,6 @@
 package net.kugou.utils
 
+import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
@@ -13,8 +14,7 @@ class SparkUtils extends Serializable {
   /**
     * 构建spark执行环境
     */
-  def createSparkEnv(master: String = ""): SparkSession = {
-
+  def createSparkEnv(master: String = "", checkPointDir: String = ""): SparkSession = {
     val conf: SparkConf = new SparkConf()
       .set("hive.exec.dynamic.partition.mode", "nonstrict")
       .set("spark.scheduler.mode", "FIFO")
@@ -23,10 +23,24 @@ class SparkUtils extends Serializable {
 
     if (master.nonEmpty) conf.setMaster(master)
 
-    SparkSession.builder()
+    val spark: SparkSession = SparkSession.builder()
       .config(conf)
       .enableHiveSupport()
       .getOrCreate()
+
+    if (checkPointDir.nonEmpty) {
+      val path = new Path(checkPointDir)
+      val sc = spark.sparkContext
+      val hadoopConf = sc.hadoopConfiguration
+      val hdfs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+      if(hdfs.exists(path)){
+        hdfs.delete(path,true)
+        println(s"成功删除 $checkPointDir")
+      }
+      sc.setCheckpointDir(checkPointDir)
+    }
+
+    spark
   }
 }
 
